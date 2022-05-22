@@ -1,0 +1,1 @@
+/usr/bin/cc -Wall -O3 -g  -rdynamic CMakeFiles/mpiTest.dir/src/Baseline.c.o CMakeFiles/mpiTest.dir/src/MyAlgorithm.c.o CMakeFiles/mpiTest.dir/src/PairwiseComputation.c.o CMakeFiles/mpiTest.dir/src/utils.c.o  -o mpiTest  -lpthread 
