@@ -1,1 +1,0 @@
-/usr/bin/cc -Wall -O3 -g  -rdynamic CMakeFiles/pairwiseComp.dir/src/Baseline.c.o CMakeFiles/pairwiseComp.dir/src/MyAlgorithm.c.o CMakeFiles/pairwiseComp.dir/src/PairwiseComputation.c.o CMakeFiles/pairwiseComp.dir/src/utils.c.o CMakeFiles/pairwiseComp.dir/MPITest/MPI.c.o  -o pairwiseComp  -lpthread 
