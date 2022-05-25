@@ -12,10 +12,12 @@
 #include <getopt.h>
 #include "mpi.h"
 
-#define PAIR_NUM(N) (N*(N+1)/2) // Compute the work load
-#define posInRes(IDXARR, y, x) (IDXARR[y] + (x) - (y)) // Compute the correspond index in the result vector by i, j
+#define PAIR_NUM(N) ((N)*((N)+1)/2) // Compute the work load
+#define posInRes(IDXARR, y, x) ((IDXARR)[y] + (x) - (y)) // Compute the correspond index in the result vector by i, j
 #define MICROSEC_PER_SEC (1000000)
-#define timediff(before, after) ((after.tv_sec-before.tv_sec)*MICROSEC_PER_SEC + (after.tv_usec-before.tv_usec))
+#define timediff(before, after) (((after).tv_sec-(before).tv_sec)*MICROSEC_PER_SEC + ((after).tv_usec-(before).tv_usec))
+#define NODEINFO_LEN (4)
+#define LOG_PREFIX ("[PAIRWISE]")
 
 typedef struct timeval TIME;
 
@@ -25,6 +27,13 @@ typedef struct{
 }RES;
 
 typedef struct{
+    float *array;
+    unsigned *index;
+    unsigned *indexDict;
+    unsigned size;
+}distributed_res_t;
+
+typedef struct{
     float **matrix;
     unsigned rows;
     unsigned cols;
@@ -32,17 +41,20 @@ typedef struct{
 
 // Command line arguments. See argParse() for detail.
 typedef struct{
-    unsigned m;
-    unsigned n;
-    unsigned t;
-    unsigned b;
-    bool s;
-    bool p;
-    bool k;
+    unsigned nCols; // m
+    unsigned nRows; // n
+    unsigned nThreads; // t
+    unsigned blockSize; // b
+    bool silent; // s
+    bool skipSequentialTest; // p
+    bool skipAlgorithmTest; // k
 }ARGS;
 
 typedef struct{
-
+    unsigned pad;
+    unsigned beginPositionX;
+    unsigned beginPositionY;
+    unsigned workLoad;
 }nodeinfo_t;
 
 typedef struct{
@@ -59,4 +71,7 @@ void matrixFree(MATRIX *matrix);
 void printMatrix(const MATRIX *matrix);
 void printResult(unsigned n, const float *res, unsigned long timeConsumption, const char *name, bool s);
 void resultCmp(unsigned n, const float *res, const float *res2, const char* name);
+void matrixAlloc(MATRIX *matrix, unsigned m, unsigned n);
+void distributedResGen(distributed_res_t *res, nodeinfo_t task, ARGS args);
+void distributedResFree(distributed_res_t *res);
 #endif //COMP5426ASM1_UTILS_H

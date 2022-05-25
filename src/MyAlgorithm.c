@@ -8,8 +8,10 @@ void *myAlgorithmThreadB2(void *arg){
     unsigned headPosinRes, feetPosinRes; // The corresponding index in the result array of the first and second row of the block.
     unsigned cols = args->matrix->cols, rows = args->matrix->rows;
     float **matrix = args->matrix->matrix;
-    float *res = args->res->array;
-    unsigned *idxArray = args->res->indexArray;
+    float *res = args->tmpResArray;
+    unsigned *resultIdxMapping = args->tmpIndexArray;
+    unsigned *idxArray = args->res->indexDict;
+    unsigned *arraySize = &args->tmpArraySize;
     // based on the matrix has been padded or not, divide the flow here to reduce
     // the total conditional branches in the loop
     if(args->padding){
@@ -39,18 +41,21 @@ void *myAlgorithmThreadB2(void *arg){
                 varC += vec2[j+1] * vec3[j+1];
                 varD += vec3[j+1] * vec4[j+1];
             }
-            // based on current i, j, caculate the corresponding index
+            // based on current i, j, calculate the corresponding index
             // in the result array of the first and second row of the block.
             headPosinRes = posInRes(idxArray, posY, posX);
             feetPosinRes = posInRes(idxArray, posY+1, posX);
-            res[headPosinRes] = varA;
+            record_result(varA, headPosinRes, *arraySize, res, resultIdxMapping);
+
             // based on current position, filter out the unexpected value.
             if(posY != rows-2){
                 if(posX != rows-2){
-                    res[headPosinRes+1] = varB;
-                    res[feetPosinRes+1] = varD;
+                    record_result(varB, headPosinRes+1, *arraySize, res, resultIdxMapping);
+                    record_result(varD, feetPosinRes+1, *arraySize, res, resultIdxMapping);
                 }
-                if(posX != posY) res[feetPosinRes] = varC;
+                if(posX != posY){
+                    record_result(varC, feetPosinRes, *arraySize, res, resultIdxMapping);
+                }
             }
             // jump to next block. If needed, jump to next row.
             posX += 2;
@@ -86,10 +91,13 @@ void *myAlgorithmThreadB2(void *arg){
             }
             headPosinRes = posInRes(idxArray, posY, posX);
             feetPosinRes = posInRes(idxArray, posY+1, posX+1);
-            res[headPosinRes] = varA;
-            res[headPosinRes+1] = varB;
-            res[feetPosinRes] = varD;
-            if(posX!=posY) res[feetPosinRes-1] = varC;
+            record_result(varA, headPosinRes, *arraySize, res, resultIdxMapping);
+            record_result(varB, headPosinRes+1, *arraySize, res, resultIdxMapping);
+            record_result(varD, feetPosinRes, *arraySize, res, resultIdxMapping);
+
+            if(posX!=posY)
+                record_result(varC, feetPosinRes-1, *arraySize, res, resultIdxMapping);
+
             posX += 2;
             if(posX >= rows){
                 posY += 2;
@@ -110,8 +118,10 @@ void *myAlgorithmThreadB3(void *arg){
     float **matrix = args->matrix->matrix;
     unsigned cols = args->matrix->cols;
     unsigned rows = args->matrix->rows;
-    float *res = args->res->array;
-    unsigned *idxArray = args->res->indexArray;
+    float *res = args->tmpResArray;
+    unsigned *resultIdxMapping = args->tmpIndexArray;
+    unsigned *idxArray = args->res->indexDict;
+    unsigned *arraySize = &args->tmpArraySize;
 
     if(args->padding == 1){
         for(unsigned i = 0; i < args->workLoad; ++i){
@@ -169,19 +179,20 @@ void *myAlgorithmThreadB3(void *arg){
             headPos = posInRes(idxArray, posY, posX);
             bodyPos = posInRes(idxArray, posY+1, posX);
             feetPos = posInRes(idxArray, posY+2, posX);
-            res[headPos] = varA;
-            res[headPos+1] = varB;
-            res[bodyPos+1] = varE;
+
+            record_result(varA, headPos, *arraySize, res, resultIdxMapping);
+            record_result(varB, headPos + 1, *arraySize, res, resultIdxMapping);
+            record_result(varE, bodyPos + 1, *arraySize, res, resultIdxMapping);
             if(posX < rows - 3){
-                res[headPos+2] = varC;
-                res[bodyPos+2] = varF;
-                res[feetPos+2] = varI;
+                record_result(varC, headPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varF, bodyPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varI, feetPos+2, *arraySize, res, resultIdxMapping);
             }
             if(posX != posY){
-                res[bodyPos] = varD;
-                res[feetPos+1] = varH;
+                record_result(varD, bodyPos, *arraySize, res, resultIdxMapping);
+                record_result(varH, feetPos+1, *arraySize, res, resultIdxMapping);
                 if(posX - posY > 1)
-                    res[feetPos] = varG;
+                    record_result(varG, feetPos, *arraySize, res, resultIdxMapping);
             }
             posX += 3;
             if(posX >= rows){
@@ -246,18 +257,19 @@ void *myAlgorithmThreadB3(void *arg){
             bodyPos = posInRes(idxArray, posY+1, posX);
             feetPos = posInRes(idxArray, posY+2, posX);
 
-            res[headPos] = varA;
+            record_result(varA, headPos, *arraySize, res, resultIdxMapping);
             if(posX < rows - 3){
-                res[headPos+1] = varB;
-                res[headPos+2] = varC;
-                res[bodyPos+1] = varE;
-                res[bodyPos+2] = varF;
-                res[feetPos+2] = varI;
-                if(posX != posY)res[feetPos+1] = varH;
+                record_result(varB, headPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varC, headPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varE, bodyPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varF, bodyPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varI, feetPos+2, *arraySize, res, resultIdxMapping);
+                if(posX != posY)
+                    record_result(varH, feetPos+1, *arraySize, res, resultIdxMapping);
             }
             if(posX != posY){
-                res[bodyPos] = varD;
-                res[feetPos] = varG;
+                record_result(varD, bodyPos, *arraySize, res, resultIdxMapping);
+                record_result(varG, feetPos, *arraySize, res, resultIdxMapping);
             }
             posX += 3;
             if(posX >= rows){
@@ -322,16 +334,17 @@ void *myAlgorithmThreadB3(void *arg){
             bodyPos = posInRes(idxArray, posY+1, posX);
             feetPos = posInRes(idxArray, posY+2, posX);
 
-            res[headPos] = varA;
-            res[headPos+1] = varB;
-            res[headPos+2] = varC;
-            res[bodyPos+1] = varE;
-            res[bodyPos+2] = varF;
-            res[feetPos+2] = varI;
+            record_result(varA, headPos, *arraySize, res, resultIdxMapping);
+            record_result(varB, headPos+1, *arraySize, res, resultIdxMapping);
+            record_result(varC, headPos+2, *arraySize, res, resultIdxMapping);
+            record_result(varE, bodyPos+1, *arraySize, res, resultIdxMapping);
+            record_result(varF, bodyPos+2, *arraySize, res, resultIdxMapping);
+            record_result(varI, feetPos+2, *arraySize, res, resultIdxMapping);
+
             if(posX!=posY){
-                res[bodyPos] = varD;
-                res[feetPos] = varG;
-                res[feetPos+1] = varH;
+                record_result(varD, bodyPos, *arraySize, res, resultIdxMapping);
+                record_result(varG, feetPos, *arraySize, res, resultIdxMapping);
+                record_result(varH, feetPos+1, *arraySize, res, resultIdxMapping);
             }
             posX += 3;
             if(posX >= rows){
@@ -353,8 +366,10 @@ void *myAlgorithmThreadB4(void *arg){
     float **matrix = args->matrix->matrix;
     unsigned cols = args->matrix->cols;
     unsigned rows = args->matrix->rows;
-    float *res = args->res->array;
-    unsigned *idxArray = args->res->indexArray;
+    float *res = args->tmpResArray;
+    unsigned *resultIdxMapping = args->tmpIndexArray;
+    unsigned *idxArray = args->res->indexDict;
+    unsigned *arraySize = &args->tmpArraySize;
 
     if(args->padding == 1){
         for(unsigned i = 0; i < args->workLoad; ++i){
@@ -462,25 +477,25 @@ void *myAlgorithmThreadB4(void *arg){
             legPos = posInRes(idxArray, posY+2, posX);
             feetPos = posInRes(idxArray, posY+3, posX);
             // padding = 1
-            res[headPos] = varA;
-            res[headPos+1] = varB;
-            res[headPos+2] = varC;
-            res[bodyPos+1] = varF;
-            res[bodyPos+2] = varG;
-            res[legPos+2] = varK;
+            record_result(varA, headPos, *arraySize, res, resultIdxMapping);
+            record_result(varB, headPos+1, *arraySize, res, resultIdxMapping);
+            record_result(varC, headPos+2, *arraySize, res, resultIdxMapping);
+            record_result(varF, bodyPos+1, *arraySize, res, resultIdxMapping);
+            record_result(varG, bodyPos+2, *arraySize, res, resultIdxMapping);
+            record_result(varK, legPos+2, *arraySize, res, resultIdxMapping);
             if(posX < rows - 4){
-                res[headPos+3] = varD;
-                res[bodyPos+3] = varH;
-                res[legPos+3] = varL;
-                res[feetPos+3] = varP;
+                record_result(varD, headPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varH, bodyPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varL, legPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varP, feetPos+3, *arraySize, res, resultIdxMapping);
             }
             if(posX != posY){
-                res[bodyPos] = varE;
-                res[legPos] = varI;
-                res[legPos+1] = varJ;
-                res[feetPos] = varM;
-                res[feetPos+1] = varN;
-                res[feetPos+2] = varO;
+                record_result(varE, bodyPos, *arraySize, res, resultIdxMapping);
+                record_result(varI, legPos, *arraySize, res, resultIdxMapping);
+                record_result(varJ, legPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varM, feetPos, *arraySize, res, resultIdxMapping);
+                record_result(varN, feetPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varO, feetPos+2, *arraySize, res, resultIdxMapping);
             }
             posX += 4;
             if(posX >= rows){
@@ -594,25 +609,27 @@ void *myAlgorithmThreadB4(void *arg){
             legPos = posInRes(idxArray, posY+2, posX);
             feetPos = posInRes(idxArray, posY+3, posX);
             //padding = 2
-            res[headPos] = varA;
-            res[headPos+1] = varB;
-            res[bodyPos+1] = varF;
+            record_result(varA, headPos, *arraySize, res, resultIdxMapping);
+            record_result(varB, headPos+1, *arraySize, res, resultIdxMapping);
+            record_result(varF, bodyPos+1, *arraySize, res, resultIdxMapping);
             if(posX < rows - 4){
-                res[headPos+2] = varC;
-                res[headPos+3] = varD;
-                res[bodyPos+2] = varG;
-                res[bodyPos+3] = varH;
-                res[legPos+2] = varK;
-                res[legPos+3] = varL;
-                res[feetPos+3] = varP;
-                if(posX!=posY) res[feetPos+2] = varO;
+                record_result(varC, headPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varD, headPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varG, bodyPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varH, bodyPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varK, legPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varL, legPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varP, feetPos+3, *arraySize, res, resultIdxMapping);
+                if(posX!=posY){
+                    record_result(varO, feetPos+2, *arraySize, res, resultIdxMapping);
+                }
             }
             if(posX!=posY){
-                res[bodyPos] = varE;
-                res[legPos] = varI;
-                res[legPos+1] = varJ;
-                res[feetPos] = varM;
-                res[feetPos+1] = varN;
+                record_result(varE, bodyPos, *arraySize, res, resultIdxMapping);
+                record_result(varI, legPos, *arraySize, res, resultIdxMapping);
+                record_result(varJ, legPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varM, feetPos, *arraySize, res, resultIdxMapping);
+                record_result(varN, feetPos+1, *arraySize, res, resultIdxMapping);
             }
             posX += 4;
             if(posX >= rows){
@@ -726,27 +743,27 @@ void *myAlgorithmThreadB4(void *arg){
             legPos = posInRes(idxArray, posY+2, posX);
             feetPos = posInRes(idxArray, posY+3, posX);
             //padding = 3
-            res[headPos] = varA;
+            record_result(varA, headPos, *arraySize, res, resultIdxMapping);
             if(posX < rows - 4){
-                res[headPos+1] = varB;
-                res[headPos+2] = varC;
-                res[headPos+3] = varD;
-                res[bodyPos+1] = varF;
-                res[bodyPos+2] = varG;
-                res[bodyPos+3] = varH;
-                res[legPos+2] = varK;
-                res[legPos+3] = varL;
-                res[feetPos+3] = varP;
+                record_result(varB, headPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varC, headPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varD, headPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varF, bodyPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varG, bodyPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varH, bodyPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varK, legPos+2, *arraySize, res, resultIdxMapping);
+                record_result(varL, legPos+3, *arraySize, res, resultIdxMapping);
+                record_result(varP, feetPos+3, *arraySize, res, resultIdxMapping);
                 if(posX != posY){
-                    res[legPos+1] = varJ;
-                    res[feetPos+1] = varN;
-                    res[feetPos+2] = varO;
+                    record_result(varJ, legPos+1, *arraySize, res, resultIdxMapping);
+                    record_result(varN, feetPos+1, *arraySize, res, resultIdxMapping);
+                    record_result(varO, feetPos+2, *arraySize, res, resultIdxMapping);
                 }
             }
             if(posX!=posY){
-                res[bodyPos] = varE;
-                res[legPos] = varI;
-                res[feetPos] = varM;
+                record_result(varE, bodyPos, *arraySize, res, resultIdxMapping);
+                record_result(varI, legPos, *arraySize, res, resultIdxMapping);
+                record_result(varM, feetPos, *arraySize, res, resultIdxMapping);
             }
             posX += 4;
             if(posX >= rows){
@@ -860,23 +877,23 @@ void *myAlgorithmThreadB4(void *arg){
             legPos = posInRes(idxArray, posY+2, posX);
             feetPos = posInRes(idxArray, posY+3, posX);
             //padding = 0
-            res[headPos] = varA;
-            res[headPos+1] = varB;
-            res[headPos+2] = varC;
-            res[headPos+3] = varD;
-            res[bodyPos+1] = varF;
-            res[bodyPos+2] = varG;
-            res[bodyPos+3] = varH;
-            res[legPos+2] = varK;
-            res[legPos+3] = varL;
-            res[feetPos+3] = varP;
+            record_result(varA, headPos, *arraySize, res, resultIdxMapping);
+            record_result(varB, headPos+1, *arraySize, res, resultIdxMapping);
+            record_result(varC, headPos+2, *arraySize, res, resultIdxMapping);
+            record_result(varD, headPos+3, *arraySize, res, resultIdxMapping);
+            record_result(varF, bodyPos+1, *arraySize, res, resultIdxMapping);
+            record_result(varG, bodyPos+2, *arraySize, res, resultIdxMapping);
+            record_result(varH, bodyPos+3, *arraySize, res, resultIdxMapping);
+            record_result(varK, legPos+2, *arraySize, res, resultIdxMapping);
+            record_result(varL, legPos+3, *arraySize, res, resultIdxMapping);
+            record_result(varP, feetPos+3, *arraySize, res, resultIdxMapping);
             if(posX!=posY){
-                res[bodyPos] = varE;
-                res[legPos] = varI;
-                res[legPos+1] = varJ;
-                res[feetPos] = varM;
-                res[feetPos+1] = varN;
-                res[feetPos+2] = varO;
+                record_result(varE, bodyPos, *arraySize, res, resultIdxMapping);
+                record_result(varI, legPos, *arraySize, res, resultIdxMapping);
+                record_result(varJ, legPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varM, feetPos, *arraySize, res, resultIdxMapping);
+                record_result(varN, feetPos+1, *arraySize, res, resultIdxMapping);
+                record_result(varO, feetPos+2, *arraySize, res, resultIdxMapping);
             }
             posX += 4;
             if(posX >= rows){
@@ -918,35 +935,39 @@ unsigned padding(MATRIX *matrix, unsigned b){
 /*
  * Designed algorithm.
  */
-unsigned long myAlgorithm(MATRIX *matrix, RES *res, unsigned t, const unsigned b){
+unsigned long myAlgorithm(MATRIX *matrix, distributed_res_t *res, ARGS args, nodeinfo_t task){
     TIME before, after;
 
     gettimeofday(&before, NULL);
 
-    unsigned pad = padding(matrix, b); // get the matrix padded
-
-    unsigned blocks = PAIR_NUM(matrix->rows / b); // Calculate the total workload.
     // Compute the work equally to each thread, and the remainder.
-    unsigned equalWorkLoad = blocks/t, unequalWorkLoad = blocks % t;
+    unsigned equalWorkLoad = task.workLoad/args.nThreads, unequalWorkLoad = task.workLoad % args.nThreads;
     // If the workload is too small to make every thread works, then decrease the thread number.
-    t = equalWorkLoad == 0 ? unequalWorkLoad:t;
+    unsigned workingThreadNum = equalWorkLoad == 0 ? unequalWorkLoad:args.nThreads;
 
     // Initialize the thread arguments.
-    myT_args* threadArguments = malloc(sizeof(myT_args) * t);
+    myT_args* threadArguments = malloc(sizeof(myT_args) * workingThreadNum);
 
-    unsigned vecX = 0, vecY = 0;
+    unsigned vecX = task.beginPositionX, vecY = task.beginPositionY;
 
-    for(unsigned i = 0; i < t; ++i){
+    for(unsigned i = 0; i < workingThreadNum; ++i){
         threadArguments[i].matrix = matrix;
         threadArguments[i].res = res;
         threadArguments[i].beginPositionX = vecX;
         threadArguments[i].beginPositionY = vecY;
         threadArguments[i].workLoad = i < unequalWorkLoad ? equalWorkLoad + 1 : equalWorkLoad;
-        threadArguments[i].padding = pad;
-        if(i < t-1){ // caculate the begin position for next thread
-            vecX += threadArguments[i].workLoad * b;
+        threadArguments[i].padding = task.pad;
+        threadArguments[i].tmpResArray = malloc(
+                sizeof(float) * threadArguments[i].workLoad * args.blockSize * args.blockSize
+                );
+        threadArguments[i].tmpIndexArray = malloc(
+                sizeof(int) * threadArguments[i].workLoad * args.blockSize * args.blockSize
+                );
+        threadArguments[i].tmpArraySize = 0;
+        if(i < workingThreadNum - 1){ // calculate the begin position for next thread
+            vecX += threadArguments[i].workLoad * args.blockSize;
             while(vecX >= matrix->rows){
-                vecY += b;
+                vecY += args.blockSize;
                 vecX -= matrix->rows - vecY;
             }
         }
@@ -954,7 +975,7 @@ unsigned long myAlgorithm(MATRIX *matrix, RES *res, unsigned t, const unsigned b
 
     void*(*tFunc)(void*) = NULL;
 
-    switch(b){
+    switch(args.blockSize){
         case 3:
             tFunc = myAlgorithmThreadB3;
             break;
@@ -965,17 +986,27 @@ unsigned long myAlgorithm(MATRIX *matrix, RES *res, unsigned t, const unsigned b
         default:
             tFunc = myAlgorithmThreadB2;
     }
-    pthread_t *threads = malloc(sizeof(pthread_t) * t);
+    pthread_t *threads = malloc(sizeof(pthread_t) * workingThreadNum);
 
 
-    for(unsigned i = 0; i < t; ++i){
+    for(unsigned i = 0; i < workingThreadNum; ++i){
         pthread_create(&threads[i], NULL, tFunc, &threadArguments[i]);
     }
 
-    for(unsigned i = 0; i < t; ++i){
+    for(unsigned i = 0; i < workingThreadNum; ++i){
         pthread_join(threads[i], NULL);
     }
     gettimeofday(&after, NULL);
+
+    unsigned cursor = 0;
+    for(unsigned i = 0; i < workingThreadNum; ++i){
+        memcpy(&(res->array[cursor]), threadArguments[i].tmpResArray, sizeof(float) * threadArguments[i].tmpArraySize);
+        memcpy(&(res->index[cursor]), threadArguments[i].tmpIndexArray, sizeof(int) * threadArguments[i].tmpArraySize);
+        cursor += threadArguments[i].tmpArraySize;
+        free(threadArguments[i].tmpIndexArray);
+        free(threadArguments[i].tmpResArray);
+    }
+    res->size = cursor;
 
     free(threads);
     free(threadArguments);

@@ -20,25 +20,25 @@ void argParse(int argc, char *argv[], ARGS *args){
     while((opt = getopt(argc, argv, opts)) != -1){
         switch(opt){
             case 'm':
-                args->m = strtol(optarg, NULL, 10);
+                args->nCols = strtol(optarg, NULL, 10);
                 break;
             case 'n':
-                args->n = strtol(optarg, NULL, 10);
+                args->nRows = strtol(optarg, NULL, 10);
                 break;
             case 't':
-                args->t = strtol(optarg, NULL, 10);
+                args->nThreads = strtol(optarg, NULL, 10);
                 break;
             case 'b':
-                args->b = strtol(optarg, NULL, 10);
+                args->blockSize = strtol(optarg, NULL, 10);
                 break;
             case 's':
-                args->s = true;
+                args->silent = true;
                 break;
             case 'p':
-                args->p = true;
+                args->skipSequentialTest = true;
                 break;
             case 'k':
-                args->k = true;
+                args->skipAlgorithmTest = true;
                 break;
             case 'h':
             default:
@@ -47,7 +47,7 @@ void argParse(int argc, char *argv[], ARGS *args){
         }
     }
 
-    if(args->m == 0 || args->n == 0 || args->t == 0 || args->b > 4 || args->b < 2){
+    if(args->nCols == 0 || args->nRows == 0 || args->nThreads == 0 || args->blockSize > 4 || args->blockSize < 2){
         fprintf(stderr, "Invalid arguments given!\n");
         exit(-1);
     }
@@ -89,7 +89,17 @@ void matrixGen(MATRIX *matrix, unsigned m, unsigned n){
     }
 }
 
-140 /*45+
+void matrixAlloc(MATRIX *matrix, unsigned m, unsigned n){
+    matrix->rows = n;
+    matrix->cols = m;
+    matrix->matrix = malloc(sizeof(float*)*matrix->rows);
+
+    for(unsigned row = 0; row < matrix->rows; ++row){
+        matrix->matrix[row] = malloc(sizeof(float)*matrix->cols);
+    }
+}
+
+/*
  * Free the matrix.
  */
 void matrixFree(MATRIX *matrix){
@@ -140,4 +150,48 @@ inline void resultCmp(const unsigned n, const float *res, const float *res2, con
     if(memcmp(res, res2, PAIR_NUM(n) * sizeof(float))!=0){
         printf("%s failed in comparison with naive result!\n", name);
     }
-} 890-
+}
+
+void distributedResGen(distributed_res_t *res, nodeinfo_t task, ARGS args){
+    res->indexDict = calloc(args.nRows, sizeof(int));
+    for(unsigned i = 1; i < args.nRows; ++i){
+        res->indexDict[i] = res->indexDict[i-1] + args.nRows - i + 1;
+    }
+
+//    unsigned x = task.beginPositionX,
+//             y = task.beginPositionY,
+//             resultSize = 0,
+//             resultSizeForEachBlock = args.blockSize * args.blockSize;
+
+
+
+//    for(int i = 0; i < task.workLoad; ++i){
+//        if(x == y){
+//            if(x + args.blockSize == args.nRows + task.pad){
+//                for(int tmp = 1; i <= args.blockSize - task.pad; ++tmp){
+//                    resultSize += tmp;
+//                }
+//            }else resultSize += PAIR_NUM(resultSizeForEachBlock);
+//        }else{
+//            if(x + args.blockSize == args.nRows + task.pad){
+//                resultSize += resultSizeForEachBlock - task.pad * args.nRows;
+//            }else resultSize += resultSizeForEachBlock;
+//        }
+//
+//        x += args.blockSize;
+//        if(x >= args.nRows){
+//            y += args.blockSize;
+//            x = y;
+//        }
+//    }
+    unsigned arraySize = task.workLoad * args.blockSize * args.blockSize;
+
+    res->index = calloc(arraySize, sizeof(int));
+    res->array = calloc(arraySize, sizeof(float));
+}
+
+void distributedResFree(distributed_res_t *res){
+    free(res->indexDict);
+    free(res->array);
+    free(res->index);
+}
