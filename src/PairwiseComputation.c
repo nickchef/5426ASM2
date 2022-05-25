@@ -7,12 +7,18 @@ int main(int argc, char *argv[]){
     ARGS args = {1000, 1000, 4, 2, false, false, false};
 
 
-
     MPI_INFO mpiInfo;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &(mpiInfo.id));
 
+
 #define IS_ROOT (mpiInfo.id == 0)
+
+//    if(IS_ROOT){
+//        int stop = 1;
+//        while(stop)
+//            sleep(5);
+//    }
 
     if(IS_ROOT) printf("%s Started.\n", LOG_PREFIX);
     if(IS_ROOT) printf("%s Parsing arguments.\n", LOG_PREFIX);
@@ -41,8 +47,8 @@ int main(int argc, char *argv[]){
             address[3] - address[0]
     };
 
-    MPI_Datatype types[NODEINFO_LEN] = {MPI_UNSIGNED};
-    int blockLength[NODEINFO_LEN] = {sizeof(unsigned)};
+    MPI_Datatype types[NODEINFO_LEN] = {MPI_UNSIGNED,MPI_UNSIGNED,MPI_UNSIGNED,MPI_UNSIGNED};
+    int blockLength[NODEINFO_LEN] = {1, 1, 1, 1};
     MPI_Datatype MPINodeInfoDataType;
 
     MPI_Type_create_struct(NODEINFO_LEN, blockLength, displacement, types, &MPINodeInfoDataType);
@@ -69,7 +75,7 @@ int main(int argc, char *argv[]){
             nodeInfo[nodeID].pad = pad;
             nodeInfo[nodeID].beginPositionX = x;
             nodeInfo[nodeID].beginPositionY = y;
-            nodeInfo[nodeID].workLoad = nodeID < remained ? equalWorkload : equalWorkload + 1;
+            nodeInfo[nodeID].workLoad = nodeID < remained ? equalWorkload + 1 : equalWorkload;
             if(nodeID < workNode - 1){ // calculate the begin position for next thread
                 x += nodeInfo[nodeID].workLoad * args.blockSize;
                 while(x >= matrix.rows){
@@ -85,14 +91,15 @@ int main(int argc, char *argv[]){
 
         printf("%s Broadcasting tasks.\n", LOG_PREFIX);
 
-    }else{
-        matrixAlloc(&matrix, args.nCols, args.nRows);
     }
     // Generate matrix
-
     MPI_Scatter(nodeInfo, 1, MPINodeInfoDataType, &task, 1, MPINodeInfoDataType, 0, MPI_COMM_WORLD);
 
-    if(IS_ROOT) printf("%s Broadcasting matrix.\n", LOG_PREFIX);
+    printf("%s [P%d] Task retrieved %d blocks.\n", LOG_PREFIX, mpiInfo.id, task.workLoad);
+
+    if(!IS_ROOT) matrixAlloc(&matrix, args, task);
+    else printf("%s Broadcasting matrix.\n", LOG_PREFIX);
+
     for(int i = 0; i < matrix.rows; ++i)
         MPI_Bcast(matrix.matrix[i], (int)matrix.cols, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
@@ -115,6 +122,7 @@ int main(int argc, char *argv[]){
 
         if(IS_ROOT) printf("%s Gathering results.\n", LOG_PREFIX);
         // gathering size at first;
+        printf("%s [P%d] Sending results. Size = %d\n", LOG_PREFIX ,mpiInfo.id, myAlgorithmResult.size);
         MPI_Gather(&(myAlgorithmResult.size), 1, MPI_UNSIGNED, sizeBuffer, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
         float *resBuffer = NULL;
@@ -142,7 +150,7 @@ int main(int argc, char *argv[]){
                 finalResult[idxBuffer[i]] = resBuffer[i];
             }
             gettimeofday(&after, NULL);
-            printf("Total time consumption of the algorithm computation: %ldus", timediff(before, after));
+            printf("Total time consumption of the algorithm computation & communication: %ldus\n", timediff(before, after));
             free(resBuffer);
             free(idxBuffer);
             free(displacementOffset);

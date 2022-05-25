@@ -71,7 +71,7 @@ void matrixFree(MATRIX *matrix);
 void printMatrix(const MATRIX *matrix);
 void printResult(unsigned n, const float *res, unsigned long timeConsumption, const char *name, bool s);
 void resultCmp(unsigned n, const float *res, const float *res2, const char* name);
-void matrixAlloc(MATRIX *matrix, unsigned m, unsigned n);
+void matrixAlloc(MATRIX *matrix, ARGS arg, nodeinfo_t task);
 void distributedResGen(distributed_res_t *res, nodeinfo_t task, ARGS args);
 void distributedResFree(distributed_res_t *res);
 #endif //COMP5426ASM1_UTILS_H

@@ -4,7 +4,7 @@
  * Read the command line arguments.
  */
 void argParse(int argc, char *argv[], ARGS *args){
-    const char *opts = "m:n:t:b:s::plkh",
+    const char *opts = "m:n:t:b:spkh",
                *usage = "Usage: pairwiseComp \n"
                         " -[n] Rows Number: > 0, default:1000\n"
                         " -[m] Columns Number: > 0, default:1000\n"
@@ -89,10 +89,10 @@ void matrixGen(MATRIX *matrix, unsigned m, unsigned n){
     }
 }
 
-void matrixAlloc(MATRIX *matrix, unsigned m, unsigned n){
-    matrix->rows = n;
-    matrix->cols = m;
-    matrix->matrix = malloc(sizeof(float*)*matrix->rows);
+void matrixAlloc(MATRIX *matrix, ARGS arg, nodeinfo_t task){
+    matrix->rows = arg.nRows + task.pad;
+    matrix->matrix = malloc(sizeof(float*) * matrix->rows);
+    matrix->cols = arg.nCols + arg.blockSize - (arg.nCols % arg.blockSize);
 
     for(unsigned row = 0; row < matrix->rows; ++row){
         matrix->matrix[row] = malloc(sizeof(float)*matrix->cols);
@@ -158,36 +158,11 @@ void distributedResGen(distributed_res_t *res, nodeinfo_t task, ARGS args){
         res->indexDict[i] = res->indexDict[i-1] + args.nRows - i + 1;
     }
 
-//    unsigned x = task.beginPositionX,
-//             y = task.beginPositionY,
-//             resultSize = 0,
-//             resultSizeForEachBlock = args.blockSize * args.blockSize;
-
-
-
-//    for(int i = 0; i < task.workLoad; ++i){
-//        if(x == y){
-//            if(x + args.blockSize == args.nRows + task.pad){
-//                for(int tmp = 1; i <= args.blockSize - task.pad; ++tmp){
-//                    resultSize += tmp;
-//                }
-//            }else resultSize += PAIR_NUM(resultSizeForEachBlock);
-//        }else{
-//            if(x + args.blockSize == args.nRows + task.pad){
-//                resultSize += resultSizeForEachBlock - task.pad * args.nRows;
-//            }else resultSize += resultSizeForEachBlock;
-//        }
-//
-//        x += args.blockSize;
-//        if(x >= args.nRows){
-//            y += args.blockSize;
-//            x = y;
-//        }
-//    }
     unsigned arraySize = task.workLoad * args.blockSize * args.blockSize;
 
     res->index = calloc(arraySize, sizeof(int));
     res->array = calloc(arraySize, sizeof(float));
+    res->size = 0;
 }
 
 void distributedResFree(distributed_res_t *res){
