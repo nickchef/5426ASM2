@@ -3,6 +3,7 @@
 
 #include "utils.h"
 
+// function to assign both index and result
 #define record_result(res, index, currentSize, resArr, idxArr) { \
     (resArr)[(currentSize)] = (res);                             \
     (idxArr)[(currentSize)++] = (index);                         \
@@ -10,11 +11,11 @@
 
 // Thread Arguments for designed algorithm
 typedef struct{
-    const MATRIX *matrix; // Source matrix
+    const MATRIX *matrix;   // Source matrix
     distributed_res_t *res; // Result vector and locating array
-    float *tmpResArray;
-    unsigned *tmpIndexArray;
-    unsigned tmpArraySize;
+    float *tmpResArray;     // Temporary array to store the result of the current thread.
+    unsigned *tmpIndexArray;// Temporary array to store the index in the final result of the result.
+    unsigned tmpArraySize;  // Size of the temporary array.
     // Where the thread begin their work
     unsigned beginPositionX;
     unsigned beginPositionY;

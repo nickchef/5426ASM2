@@ -27,10 +27,10 @@ typedef struct{
 }RES;
 
 typedef struct{
-    float *array;
-    unsigned *index;
-    unsigned *indexDict;
-    unsigned size;
+    float *array;       // Result for the current processor.
+    unsigned *index;    // Index in the final result of the result of current processor
+    unsigned *indexDict;// Array helps to find the index in the final result.
+    unsigned size;      // Result size on the current processor.
 }distributed_res_t;
 
 typedef struct{
@@ -51,10 +51,10 @@ typedef struct{
 }ARGS;
 
 typedef struct{
-    unsigned pad;
+    unsigned pad;            // How much has the matrix been padded.
     unsigned beginPositionX;
     unsigned beginPositionY;
-    unsigned workLoad;
+    unsigned workLoad;       // Work load for the processor, in terms of block.
 }nodeinfo_t;
 
 typedef struct{

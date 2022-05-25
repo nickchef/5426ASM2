@@ -127,7 +127,7 @@ void printMatrix(const MATRIX *matrix){
  * Print time consumption. If the silent flag has not been presented, it will also print the result in triangle.
  */
 void printResult(const unsigned n, const float *res, const unsigned long timeConsumption, const char *name, bool s){
-    printf("Time usage of %s computation: %ldus\n",name ,timeConsumption);
+    printf("%s Time usage of %s computation: %ldus\n", LOG_PREFIX, name, timeConsumption);
     if(!s){
         printf("Result:\n");
         unsigned idx = 0;
@@ -148,16 +148,20 @@ void printResult(const unsigned n, const float *res, const unsigned long timeCon
  */
 inline void resultCmp(const unsigned n, const float *res, const float *res2, const char* name){
     if(memcmp(res, res2, PAIR_NUM(n) * sizeof(float))!=0){
-        printf("%s failed in comparison with naive result!\n", name);
+        printf("%s %s failed in comparison with naive result!\n",LOG_PREFIX, name);
     }
 }
-
+/*
+ * Allocate space for the result.
+ */
 void distributedResGen(distributed_res_t *res, nodeinfo_t task, ARGS args){
     res->indexDict = calloc(args.nRows, sizeof(int));
     for(unsigned i = 1; i < args.nRows; ++i){
         res->indexDict[i] = res->indexDict[i-1] + args.nRows - i + 1;
     }
-
+    // Allocate space by workload * blockSize ^ 2.
+    // Here assuming that each computation will be valid.
+    // The actual space consumption will be likely lower.
     unsigned arraySize = task.workLoad * args.blockSize * args.blockSize;
 
     res->index = calloc(arraySize, sizeof(int));

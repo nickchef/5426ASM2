@@ -30,7 +30,7 @@ void *myAlgorithmThreadB2(void *arg){
             float varC = 0;
             float varD = 0;
             for(unsigned j = 0; j < cols; j += 2){
-                // loop has been unrolled to increase reusage
+                // loop has been unrolled to increase re-usage
                 varA += vec1[j] * vec2[j];
                 varB += vec1[j] * vec4[j];
                 varC += vec2[j] * vec3[j];
@@ -944,7 +944,7 @@ unsigned long myAlgorithm(MATRIX *matrix, distributed_res_t *res, ARGS args, nod
     unsigned equalWorkLoad = task.workLoad/args.nThreads, unequalWorkLoad = task.workLoad % args.nThreads;
     // If the workload is too small to make every thread works, then decrease the thread number.
     unsigned workingThreadNum = equalWorkLoad == 0 ? unequalWorkLoad:args.nThreads;
-
+    unsigned blockElementQuantity = args.blockSize * args.blockSize;
     // Initialize the thread arguments.
     myT_args* threadArguments = malloc(sizeof(myT_args) * workingThreadNum);
 
@@ -957,12 +957,19 @@ unsigned long myAlgorithm(MATRIX *matrix, distributed_res_t *res, ARGS args, nod
         threadArguments[i].beginPositionY = vecY;
         threadArguments[i].workLoad = i < unequalWorkLoad ? equalWorkLoad + 1 : equalWorkLoad;
         threadArguments[i].padding = task.pad;
-        threadArguments[i].tmpResArray = malloc(
-                sizeof(float) * threadArguments[i].workLoad * args.blockSize * args.blockSize
-                );
-        threadArguments[i].tmpIndexArray = malloc(
-                sizeof(int) * threadArguments[i].workLoad * args.blockSize * args.blockSize
-                );
+        /*
+         * We can hardly maintain a data structure with the same structure
+         * as the final result since the task is in a distributed memory
+         * environment and the result from single block is not continuous
+         * in the final result.
+         *
+         * Thus, there will be another array contains the index of the
+         * corresponding result in the final result. To implement a
+         * lock-free computation, each thread will be allocated their own
+         * pair of arrays.
+         */
+        threadArguments[i].tmpResArray = malloc(sizeof(float) * threadArguments[i].workLoad * blockElementQuantity);
+        threadArguments[i].tmpIndexArray = malloc(sizeof(int) * threadArguments[i].workLoad * blockElementQuantity);
         threadArguments[i].tmpArraySize = 0;
         if(i < workingThreadNum - 1){ // calculate the begin position for next thread
             vecX += threadArguments[i].workLoad * args.blockSize;
@@ -975,6 +982,10 @@ unsigned long myAlgorithm(MATRIX *matrix, distributed_res_t *res, ARGS args, nod
 
     void*(*tFunc)(void*) = NULL;
 
+    /*
+     * For different block size, use different thread function to implement a different
+     * range of loop-unrolling and blocking.
+     */
     switch(args.blockSize){
         case 3:
             tFunc = myAlgorithmThreadB3;
@@ -998,6 +1009,10 @@ unsigned long myAlgorithm(MATRIX *matrix, distributed_res_t *res, ARGS args, nod
     }
     gettimeofday(&after, NULL);
 
+    /*
+     * Concatenate the arrays of different threads so that they can be
+     * sent once for all.
+     */
     unsigned cursor = 0;
     for(unsigned i = 0; i < workingThreadNum; ++i){
         memcpy(&(res->array[cursor]), threadArguments[i].tmpResArray, sizeof(float) * threadArguments[i].tmpArraySize);
