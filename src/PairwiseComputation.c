@@ -177,6 +177,7 @@ int main(int argc, char *argv[]){
     if(!args.skipAlgorithmTest){
         distributedResFree(&myAlgorithmResult);
     }
+    
     MPI_Finalize();
 
     return 0;
