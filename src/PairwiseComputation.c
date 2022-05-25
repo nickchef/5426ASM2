@@ -95,6 +95,8 @@ int main(int argc, char *argv[]){
     // Generate matrix
     MPI_Scatter(nodeInfo, 1, MPINodeInfoDataType, &task, 1, MPINodeInfoDataType, 0, MPI_COMM_WORLD);
 
+    MPI_Type_free(&MPINodeInfoDataType);
+
     printf("%s [P%d] Task retrieved %d blocks.\n", LOG_PREFIX, mpiInfo.id, task.workLoad);
 
     if(!IS_ROOT) matrixAlloc(&matrix, args, task);
@@ -169,7 +171,10 @@ int main(int argc, char *argv[]){
     }
 
     // Clean up
-    if(IS_ROOT) printf("%s Cleaning up.\n", LOG_PREFIX);
+    if(IS_ROOT){
+        printf("%s Cleaning up.\n", LOG_PREFIX);
+        free(finalResult);
+    }
     matrixFree(&matrix);
     if(!args.skipSequentialTest && IS_ROOT){
         resFree(&naiveResult);
@@ -177,7 +182,7 @@ int main(int argc, char *argv[]){
     if(!args.skipAlgorithmTest){
         distributedResFree(&myAlgorithmResult);
     }
-    
+
     MPI_Finalize();
 
     return 0;
