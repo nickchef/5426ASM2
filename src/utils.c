@@ -149,6 +149,8 @@ void printResult(const unsigned n, const float *res, const unsigned long timeCon
 inline void resultCmp(const unsigned n, const float *res, const float *res2, const char* name){
     if(memcmp(res, res2, PAIR_NUM(n) * sizeof(float))!=0){
         printf("%s %s failed in comparison with naive result!\n",LOG_PREFIX, name);
+    }else{
+        printf("%s %s result is confirmed to be identical with the sequential result!\n",LOG_PREFIX, name);
     }
 }
 /*
